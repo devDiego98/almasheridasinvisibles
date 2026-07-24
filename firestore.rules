@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isPublished(res) {
+      return res.data.status == 'published';
+    }
+
+    // Singleton "Sobre mí" / site profile doc — public read, admin write only.
+    match /profile/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin allowlist — never client-writable; managed by hand in the console.
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /stories/{storyId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+        (isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount']) &&
+          request.resource.data.viewCount == resource.data.viewCount + 1);
+      allow delete: if isAdmin();
+
+      // Story-level likes: one doc per liker, doc ID == uid.
+      match /likes/{uid} {
+        allow read: if true;
+        allow create, delete: if isSignedIn() && request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /chapters/{chapterId} {
+        allow read: if isPublished(resource) || isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin() ||
+          (isSignedIn() &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount']) &&
+            request.resource.data.viewCount == resource.data.viewCount + 1);
+        allow delete: if isAdmin();
+
+        match /likes/{uid} {
+          allow read: if true;
+          allow create, delete: if isSignedIn() && request.auth.uid == uid;
+          allow update: if false;
+        }
+
+        match /comments/{commentId} {
+          allow read: if true;
+          allow create: if isSignedIn() &&
+            get(/databases/$(database)/documents/stories/$(storyId)).data.commentsEnabled == true &&
+            request.resource.data.authorUid == request.auth.uid &&
+            request.resource.data.text is string &&
+            request.resource.data.text.size() > 0 &&
+            request.resource.data.text.size() <= 1000;
+          allow delete: if isAdmin() ||
+            (isSignedIn() && resource.data.authorUid == request.auth.uid);
+          allow update: if false;
+        }
+      }
+    }
+  }
+}

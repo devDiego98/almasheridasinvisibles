@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+}
+
+@layer components {
+  /* Rendered chapter / synopsis rich text (Tiptap output uses the same tags) */
+  .chapter-content {
+    @apply text-slate-800 dark:text-slate-200 leading-relaxed;
+  }
+  .chapter-content h2 {
+    @apply text-2xl font-bold mt-8 mb-4;
+  }
+  .chapter-content h3 {
+    @apply text-xl font-bold mt-6 mb-3;
+  }
+  .chapter-content p {
+    @apply mb-4;
+  }
+  .chapter-content ul {
+    @apply list-disc pl-6 mb-4;
+  }
+  .chapter-content blockquote {
+    @apply border-l-4 border-accent-300 dark:border-accent-700 pl-4 italic text-slate-600 dark:text-slate-400 my-4;
+  }
+  .chapter-content hr {
+    @apply my-8 border-slate-200 dark:border-slate-800;
+  }
+  .chapter-content strong {
+    @apply font-bold;
+  }
+  .chapter-content s {
+    @apply line-through;
+  }
+
+  .tiptap-editor .ProseMirror {
+    @apply min-h-[280px] outline-none px-4 py-3;
+  }
+  .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply text-slate-400 dark:text-slate-600 float-left h-0 pointer-events-none;
+  }
+}
