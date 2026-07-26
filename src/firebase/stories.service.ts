@@ -88,7 +88,11 @@ export async function getStory(storyId: string): Promise<Story | null> {
 }
 
 export async function getStoryBySlug(slug: string): Promise<Story | null> {
-  const q = query(storiesCol, where('slug', '==', slug))
+  // Firestore validates list queries against their declared filters, not the actual
+  // document data — the published filter must be explicit here to match
+  // firestore.rules' `resource.data.published == true` read condition, or the query
+  // is rejected outright for any non-admin reader.
+  const q = query(storiesCol, where('slug', '==', slug), where('published', '==', true))
   const snap = await getDocs(q)
   if (snap.empty) return null
   return fromDoc(snap.docs[0])

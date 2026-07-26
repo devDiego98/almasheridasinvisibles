@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { FaInstagram, FaTiktok, FaRedditAlien, FaDiscord } from 'react-icons/fa6'
+import { useAuth } from '../../contexts/AuthContext'
 import type { SocialLinks } from '../../types/profile'
 
 interface FooterProps {
@@ -13,6 +15,8 @@ const SOCIAL_ICON_LINKS: { key: keyof SocialLinks; label: string; Icon: typeof F
 ]
 
 export function Footer({ socialLinks = {} }: FooterProps) {
+  const { user } = useAuth()
+  const isSignedIn = user?.isAnonymous === false
   const activeLinks = SOCIAL_ICON_LINKS.filter(({ key }) => socialLinks[key])
 
   return (
@@ -37,6 +41,14 @@ export function Footer({ socialLinks = {} }: FooterProps) {
         <p className="text-xs text-slate-400 dark:text-slate-500">
           © {new Date().getFullYear()} Almas Heridas Invisibles. Todos los derechos reservados.
         </p>
+        {!isSignedIn && (
+          <Link
+            to="/admin/login"
+            className="text-[11px] text-slate-300 hover:text-slate-400 dark:text-slate-700 dark:hover:text-slate-600"
+          >
+            Admin
+          </Link>
+        )}
       </div>
     </footer>
   )

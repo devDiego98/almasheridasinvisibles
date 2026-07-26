@@ -11,6 +11,7 @@ import {
   markChapterViewedThisSession,
 } from '../../firebase/chapters.service'
 import { hasLikedChapter, toggleChapterLike } from '../../firebase/likes.service'
+import { recordChapterRead } from '../../firebase/history.service'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Story } from '../../types/story'
 import type { Chapter } from '../../types/chapter'
@@ -38,6 +39,8 @@ export function ChapterReaderPage() {
       setStory(s)
       setChapters(chs)
       setLoading(false)
+    }).catch(() => {
+      if (active) setLoading(false)
     })
     return () => {
       active = false
@@ -53,6 +56,16 @@ export function ChapterReaderPage() {
     if (!hasViewedChapterThisSession(chapter.id)) {
       incrementChapterViewCount(story.id, chapter.id)
       markChapterViewedThisSession(chapter.id)
+    }
+    if (user) {
+      recordChapterRead(user.uid, {
+        chapterId: chapter.id,
+        storyId: story.id,
+        storySlug: story.slug,
+        storyTitle: story.title,
+        chapterTitle: chapter.title,
+        chapterOrder: chapter.order,
+      })
     }
   }, [story, chapter, user])
 

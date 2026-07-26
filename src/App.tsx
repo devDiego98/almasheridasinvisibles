@@ -6,6 +6,7 @@ import { RequireAdmin } from './routes/RequireAdmin'
 import { HomePage } from './pages/public/HomePage'
 import { StoryDetailPage } from './pages/public/StoryDetailPage'
 import { ChapterReaderPage } from './pages/public/ChapterReaderPage'
+import { AccountPage } from './pages/public/AccountPage'
 
 import { LoginPage } from './pages/admin/LoginPage'
 import { DashboardPage } from './pages/admin/DashboardPage'
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/historia/:storySlug" element={<StoryDetailPage />} />
         <Route path="/historia/:storySlug/capitulo/:chapterOrder" element={<ChapterReaderPage />} />
+        <Route path="/mi-cuenta" element={<AccountPage />} />
       </Route>
 
       <Route path="/admin/login" element={<LoginPage />} />

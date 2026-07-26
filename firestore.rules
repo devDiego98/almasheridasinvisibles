@@ -16,6 +16,16 @@ service cloud.firestore {
       return res.data.status == 'published';
     }
 
+    // Lets signed-in readers bump a single counter field by exactly 1 (or -1, for
+    // fields that can be undone, e.g. unliking/deleting) — used for the viewCount,
+    // likeCount, and commentCount writes readers trigger directly, without opening
+    // stories/chapters up to arbitrary client edits.
+    function isCounterBump(before, after, field, allowDecrement) {
+      return after.data.diff(before.data).affectedKeys().hasOnly([field]) &&
+        (after.data[field] == before.data[field] + 1 ||
+          (allowDecrement && after.data[field] == before.data[field] - 1));
+    }
+
     // Singleton "Sobre mí" / site profile doc — public read, admin write only.
     match /profile/{docId} {
       allow read: if true;
@@ -28,13 +38,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Per-reader private data: favorite stories and reading history.
+    match /users/{uid}/{document=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
     match /stories/{storyId} {
       allow read: if resource.data.published == true || isAdmin();
       allow create: if isAdmin();
       allow update: if isAdmin() ||
         (isSignedIn() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount']) &&
-          request.resource.data.viewCount == resource.data.viewCount + 1);
+          (isCounterBump(resource, request.resource, 'viewCount', false) ||
+            isCounterBump(resource, request.resource, 'likeCount', true)));
       allow delete: if isAdmin();
 
       // Story-level likes: one doc per liker, doc ID == uid.
@@ -49,8 +64,9 @@ service cloud.firestore {
         allow create: if isAdmin();
         allow update: if isAdmin() ||
           (isSignedIn() &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount']) &&
-            request.resource.data.viewCount == resource.data.viewCount + 1);
+            (isCounterBump(resource, request.resource, 'viewCount', false) ||
+              isCounterBump(resource, request.resource, 'likeCount', true) ||
+              isCounterBump(resource, request.resource, 'commentCount', true)));
         allow delete: if isAdmin();
 
         match /likes/{uid} {

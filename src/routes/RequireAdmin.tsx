@@ -1,14 +1,13 @@
 import type { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 /**
  * Client-side UX guard only — actual write/read protection for admin data lives in
- * firestore.rules / storage.rules via the `admins/{uid}` allowlist.
+ * firestore.rules via the `admins/{uid}` allowlist.
  */
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useAuth()
-  const location = useLocation()
 
   if (loading) {
     return (
@@ -19,7 +18,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   }
 
   if (!user || user.isAnonymous || !isAdmin) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />
+    return <Navigate to="/admin/login" replace />
   }
 
   return <>{children}</>

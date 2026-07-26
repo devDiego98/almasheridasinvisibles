@@ -1,17 +1,47 @@
-import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { BookHeart } from 'lucide-react'
-import { signInAdmin } from '../../firebase/auth'
+import { signInAdmin, signOutUser } from '../../firebase/auth'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const location = useLocation()
+  const { user, isAdmin, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [awaitingAdmin, setAwaitingAdmin] = useState(false)
+
+  // Once signInAdmin() resolves, AuthContext still needs a moment to confirm admin
+  // status via Firestore — react to that instead of navigating blindly right away,
+  // which used to race the check and bounce back to /admin/login.
+  useEffect(() => {
+    if (!awaitingAdmin || loading) return
+    setAwaitingAdmin(false)
+    setSubmitting(false)
+    if (isAdmin) {
+      navigate('/', { replace: true })
+    } else {
+      setError('Esta cuenta no tiene permisos de administrador.')
+      signOutUser()
+    }
+  }, [awaitingAdmin, loading, isAdmin, navigate])
+
+  // This route is only for signing in — anyone already signed in (admin or not) gets
+  // bounced immediately, before the form ever renders (a render-time <Navigate>
+  // instead of a post-render effect+navigate() avoids an extra visible tick).
+  if (!awaitingAdmin) {
+    if (loading) {
+      return <div className="flex min-h-screen items-center justify-center text-slate-400">Cargando…</div>
+    }
+    if (user && !user.isAnonymous) {
+      return <Navigate to="/" replace />
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -19,11 +49,9 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       await signInAdmin(email, password)
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/admin'
-      navigate(from, { replace: true })
+      setAwaitingAdmin(true)
     } catch {
       setError('Email o contraseña incorrectos.')
-    } finally {
       setSubmitting(false)
     }
   }
@@ -49,12 +77,11 @@ export function LoginPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña</label>
-            <input
-              type="password"
+            <PasswordInput
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent-400 dark:border-slate-700 dark:bg-slate-900"
             />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}

@@ -42,6 +42,8 @@ export function StoryDetailPage() {
       setChapters(chs)
       setLiked(likedByUser)
       setLoading(false)
+    }).catch(() => {
+      if (active) setLoading(false)
     })
     return () => {
       active = false

@@ -1,10 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { User } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { getProfile, saveProfile } from '../../firebase/profile.service'
+import { changeAdminPassword } from '../../firebase/auth'
 import { uploadProfilePhoto } from '../../services/cloudinary.service'
 import { DEFAULT_PROFILE, type Profile } from '../../types/profile'
+
+function passwordErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code
+  if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+    return 'La contraseña actual es incorrecta.'
+  }
+  if (code === 'auth/weak-password') {
+    return 'La contraseña nueva es demasiado débil (mínimo 6 caracteres).'
+  }
+  if (code === 'auth/too-many-requests') {
+    return 'Demasiados intentos. Probá de nuevo en unos minutos.'
+  }
+  return 'No se pudo cambiar la contraseña. Intentá de nuevo.'
+}
 
 export function ProfileSettingsPage() {
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE)
@@ -12,6 +28,13 @@ export function ProfileSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [savedMessage, setSavedMessage] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
     getProfile()
@@ -37,6 +60,34 @@ export function ProfileSettingsPage() {
       setTimeout(() => setSavedMessage(false), 2500)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleChangePassword(e: FormEvent) {
+    e.preventDefault()
+    setPasswordError(null)
+
+    if (newPassword.length < 6) {
+      setPasswordError('La contraseña nueva debe tener al menos 6 caracteres.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Las contraseñas nuevas no coinciden.')
+      return
+    }
+
+    setChangingPassword(true)
+    try {
+      await changeAdminPassword(currentPassword, newPassword)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordSaved(true)
+      setTimeout(() => setPasswordSaved(false), 2500)
+    } catch (error) {
+      setPasswordError(passwordErrorMessage(error))
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -135,6 +186,53 @@ export function ProfileSettingsPage() {
           </Button>
           {savedMessage && <span className="text-sm text-emerald-600 dark:text-emerald-400">Guardado ✓</span>}
         </div>
+      </Card>
+
+      <Card className="mt-6 flex flex-col gap-4 p-6">
+        <h2 className="font-serif text-lg font-semibold text-slate-900 dark:text-white">Cambiar contraseña</h2>
+
+        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña actual</label>
+            <PasswordInput
+              required
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña nueva</label>
+              <PasswordInput
+                required
+                minLength={6}
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Confirmar contraseña</label>
+              <PasswordInput
+                required
+                minLength={6}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {passwordError && <p className="text-sm text-red-500">{passwordError}</p>}
+
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={changingPassword}>
+              Cambiar contraseña
+            </Button>
+            {passwordSaved && <span className="text-sm text-emerald-600 dark:text-emerald-400">Contraseña actualizada ✓</span>}
+          </div>
+        </form>
       </Card>
     </div>
   )
